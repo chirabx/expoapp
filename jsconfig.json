@@ -1,0 +1,16 @@
+{
+    "extends": "expo/jsconfig.base",
+    "compilerOptions": {
+        "paths": {
+            "@/*": [
+                "./*"
+            ]
+        }
+    },
+    "include": [
+        "**/*.js",
+        "**/*.jsx",
+        ".expo/types/**/*.ts",
+        "expo-env.d.ts"
+    ]
+}
