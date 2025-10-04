@@ -10,6 +10,7 @@ import {
     TouchableWithoutFeedback,
     View
 } from 'react-native';
+import { StudentDataProvider } from '../contexts/StudentDataContext';
 import DashboardContent from './DashboardContent';
 import MenuButton from './MenuButton';
 import Sidebar from './Sidebar';
@@ -209,70 +210,72 @@ export default function MainScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            {isAndroid && <StatusBar backgroundColor="#667eea" barStyle="light-content" />}
+        <StudentDataProvider>
+            <View style={styles.container}>
+                {isAndroid && <StatusBar backgroundColor="#667eea" barStyle="light-content" />}
 
-            <View style={styles.mainLayout}>
-                {/* 主内容区 - 始终占满屏幕 */}
-                <Animated.View style={[
-                    styles.contentArea,
-                    IS_TABLET && {
-                        marginLeft: sidebarExpanded ? 280 : 60
-                    },
-                    {
-                        opacity: contentOpacity,
-                        transform: [
-                            { scale: contentScale },
-                            { translateX: contentTranslateX }
-                        ]
-                    }
-                ]}>
-                    {renderContent()}
-                </Animated.View>
+                <View style={styles.mainLayout}>
+                    {/* 主内容区 - 始终占满屏幕 */}
+                    <Animated.View style={[
+                        styles.contentArea,
+                        IS_TABLET && {
+                            marginLeft: sidebarExpanded ? 280 : 60
+                        },
+                        {
+                            opacity: contentOpacity,
+                            transform: [
+                                { scale: contentScale },
+                                { translateX: contentTranslateX }
+                            ]
+                        }
+                    ]}>
+                        {renderContent()}
+                    </Animated.View>
 
-                {/* 手势检测区域 - 仅在屏幕左边缘 */}
-                {!IS_TABLET && (
-                    <View
-                        style={[styles.gestureArea, { backgroundColor: 'rgba(255, 0, 0, 0.1)' }]} // 临时显示红色，便于调试
-                        {...panResponder.panHandlers}
-                    />
-                )}
-
-                {/* 手机上的遮罩层 */}
-                {!IS_TABLET && (
-                    <TouchableWithoutFeedback onPress={handleOverlayPress}>
-                        <Animated.View
-                            style={[
-                                styles.overlay,
-                                {
-                                    opacity: overlayOpacity,
-                                    pointerEvents: sidebarExpanded ? 'auto' : 'none'
-                                }
-                            ]}
+                    {/* 手势检测区域 - 仅在屏幕左边缘 */}
+                    {!IS_TABLET && (
+                        <View
+                            style={[styles.gestureArea, { backgroundColor: 'rgba(255, 0, 0, 0.1)' }]} // 临时显示红色，便于调试
+                            {...panResponder.panHandlers}
                         />
-                    </TouchableWithoutFeedback>
-                )}
+                    )}
 
-                {/* 侧边栏 - 始终渲染，通过动画控制显示 */}
-                <View style={[
-                    styles.sidebarContainer,
-                    IS_TABLET ? styles.sidebarTablet : styles.sidebarMobile
-                ]}>
-                    <Sidebar
+                    {/* 手机上的遮罩层 */}
+                    {!IS_TABLET && (
+                        <TouchableWithoutFeedback onPress={handleOverlayPress}>
+                            <Animated.View
+                                style={[
+                                    styles.overlay,
+                                    {
+                                        opacity: overlayOpacity,
+                                        pointerEvents: sidebarExpanded ? 'auto' : 'none'
+                                    }
+                                ]}
+                            />
+                        </TouchableWithoutFeedback>
+                    )}
+
+                    {/* 侧边栏 - 始终渲染，通过动画控制显示 */}
+                    <View style={[
+                        styles.sidebarContainer,
+                        IS_TABLET ? styles.sidebarTablet : styles.sidebarMobile
+                    ]}>
+                        <Sidebar
+                            isExpanded={sidebarExpanded}
+                            onToggle={handleSidebarToggle}
+                            activeTab={activeTab}
+                            onTabChange={handleTabChange}
+                        />
+                    </View>
+
+                    {/* 汉堡菜单按钮 */}
+                    <MenuButton
+                        onPress={handleSidebarToggle}
                         isExpanded={sidebarExpanded}
-                        onToggle={handleSidebarToggle}
-                        activeTab={activeTab}
-                        onTabChange={handleTabChange}
                     />
                 </View>
-
-                {/* 汉堡菜单按钮 */}
-                <MenuButton
-                    onPress={handleSidebarToggle}
-                    isExpanded={sidebarExpanded}
-                />
             </View>
-        </View>
+        </StudentDataProvider>
     );
 }
 

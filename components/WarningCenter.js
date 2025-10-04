@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -17,6 +18,7 @@ import {
     TouchableWithoutFeedback,
     View
 } from 'react-native';
+import { useStudentData } from '../contexts/StudentDataContext';
 import StudentChart from './StudentChart';
 
 const { width, height } = Dimensions.get('window');
@@ -26,176 +28,61 @@ const IS_TABLET = width > 768;
 // 安卓状态栏高度
 const STATUS_BAR_HEIGHT = isAndroid ? 24 : 0;
 
-// 模拟数据
-const mockClasses = [
-    {
-        id: 1,
-        name: '软件工程2024-1班',
-        students: 45,
-        healthScore: 85,
-        warningCount: 3,
-        mediumRisk: 5,
-        highRisk: 2,
-        extremeRisk: 1
-    },
-    {
-        id: 2,
-        name: '计算机科学2024-2班',
-        students: 42,
-        healthScore: 92,
-        warningCount: 1,
-        mediumRisk: 2,
-        highRisk: 0,
-        extremeRisk: 0
-    },
-    {
-        id: 3,
-        name: '数据科学2024-1班',
-        students: 38,
-        healthScore: 78,
-        warningCount: 5,
-        mediumRisk: 8,
-        highRisk: 3,
-        extremeRisk: 2
-    }
-];
-
-const mockStudents = {
-    1: [
-        {
-            id: 1,
-            name: '张小明',
-            avatar: '',
-            riskLevel: '极高',
-            riskScore: 95,
-            profileTags: ['自我驱动的探究者', '潜力待挖的适应者'],
-            keyIndicators: {
-                homeworkSubmission: 45, // 作业提交率
-                classParticipation: 20, // 课堂参与度
-                assignmentScore: 65, // 作业成绩平均分
-                attendanceRate: 85 // 出勤率
-            },
-            issues: [
-                '连续3天未提交作业',
-                '课堂参与度急剧下降',
-                '最近考试成绩下滑明显'
-            ]
-        },
-        {
-            id: 2,
-            name: '李小红',
-            avatar: '',
-            riskLevel: '高',
-            riskScore: 78,
-            profileTags: ['高效学习者', '社交活跃者'],
-            keyIndicators: {
-                homeworkSubmission: 85,
-                classParticipation: 60,
-                assignmentScore: 78,
-                attendanceRate: 90
-            },
-            issues: [
-                '最近课堂互动减少',
-                '小组合作积极性下降'
-            ]
-        },
-        {
-            id: 3,
-            name: '王小强',
-            avatar: '',
-            riskLevel: '中',
-            riskScore: 65,
-            profileTags: ['勤奋努力型', '技术探索者'],
-            keyIndicators: {
-                homeworkSubmission: 90,
-                classParticipation: 75,
-                assignmentScore: 82,
-                attendanceRate: 95
-            },
-            issues: [
-                '学习进度稍慢于预期'
-            ]
-        }
-    ],
-    2: [
-        {
-            id: 4,
-            name: '赵小芳',
-            avatar: '',
-            riskLevel: '中',
-            riskScore: 68,
-            profileTags: ['思维敏捷者', '创意思考者'],
-            keyIndicators: {
-                homeworkSubmission: 88,
-                classParticipation: 80,
-                assignmentScore: 85,
-                attendanceRate: 92
-            },
-            issues: [
-                '最近作业质量略有下降'
-            ]
-        }
-    ],
-    3: [
-        {
-            id: 5,
-            name: '陈小华',
-            avatar: '',
-            riskLevel: '极高',
-            riskScore: 92,
-            profileTags: ['潜力待挖的适应者'],
-            keyIndicators: {
-                homeworkSubmission: 40,
-                classParticipation: 15,
-                assignmentScore: 55,
-                attendanceRate: 70
-            },
-            issues: [
-                '连续一周未提交作业',
-                '课堂参与度极低',
-                '出勤率持续下降'
-            ]
-        },
-        {
-            id: 6,
-            name: '刘小东',
-            avatar: '',
-            riskLevel: '高',
-            riskScore: 75,
-            profileTags: ['自我驱动的探究者', '技术探索者'],
-            keyIndicators: {
-                homeworkSubmission: 75,
-                classParticipation: 45,
-                assignmentScore: 70,
-                attendanceRate: 85
-            },
-            issues: [
-                '最近学习热情明显下降',
-                '与同学交流减少'
-            ]
-        }
-    ]
-};
-
 export default function WarningCenter() {
+    const { warningStudents, classes, addNewStudent } = useStudentData();
+
     const [selectedClassId, setSelectedClassId] = useState(1);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [riskFilter, setRiskFilter] = useState('全部');
     const [showStudentDetail, setShowStudentDetail] = useState(false);
     const [showRiskDropdown, setShowRiskDropdown] = useState(false);
 
+    // 数据导入相关状态
+    const [isImporting, setIsImporting] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importProgress, setImportProgress] = useState(0);
+    const [selectedFile, setSelectedFile] = useState(null);
+
     // 动画状态
     const [dropdownScaleY] = useState(new Animated.Value(0));
     const [dropdownOpacity] = useState(new Animated.Value(0));
+    const [rotationValue] = useState(new Animated.Value(0));
 
     const riskFilters = ['全部', '极高', '高', '中', '低'];
 
-    const selectedClass = mockClasses.find(cls => cls.id === selectedClassId);
-    const students = mockStudents[selectedClassId] || [];
+    // 旋转动画
+    useEffect(() => {
+        if (isImporting) {
+            const startRotation = () => {
+                rotationValue.setValue(0);
+                Animated.timing(rotationValue, {
+                    toValue: 1,
+                    duration: 1000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }).start(() => {
+                    if (isImporting) {
+                        startRotation();
+                    }
+                });
+            };
+            startRotation();
+        } else {
+            rotationValue.stopAnimation();
+        }
+    }, [isImporting]);
+
+    const rotation = rotationValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
+
+    const selectedClass = classes.find(cls => cls.id === selectedClassId);
+    const currentStudents = warningStudents[selectedClassId] || [];
 
     const filteredStudents = riskFilter === '全部'
-        ? students
-        : students.filter(student => student.riskLevel === riskFilter);
+        ? currentStudents
+        : currentStudents.filter(student => student.riskLevel === riskFilter);
 
     const getRiskColor = (riskLevel) => {
         switch (riskLevel) {
@@ -210,6 +97,107 @@ export default function WarningCenter() {
     const handleStudentPress = (student) => {
         setSelectedStudent(student);
         setShowStudentDetail(true);
+    };
+
+    // 数据导入功能 - 文件选择
+    const handleImportData = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'],
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const file = result.assets[0];
+
+                // 检查文件类型
+                const allowedTypes = [
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'application/vnd.ms-excel'
+                ];
+
+                if (!allowedTypes.includes(file.mimeType)) {
+                    Alert.alert('文件格式错误', '请选择Excel文件（.xlsx或.xls格式）');
+                    return;
+                }
+
+                setSelectedFile(file);
+                setShowImportModal(true);
+            }
+        } catch (error) {
+            console.error('文件选择错误:', error);
+            Alert.alert('文件选择失败', '无法访问系统文件，请检查权限设置');
+        }
+    };
+
+    const simulateDataImport = () => {
+        setIsImporting(true);
+        setImportProgress(0);
+
+        // 模拟导入进度
+        const progressInterval = setInterval(() => {
+            setImportProgress(prev => {
+                if (prev >= 100) {
+                    clearInterval(progressInterval);
+                    return 100;
+                }
+                return prev + 10;
+            });
+        }, 200);
+
+        // 模拟3秒的导入过程
+        setTimeout(() => {
+            clearInterval(progressInterval);
+
+            // 创建新学生数据
+            const newStudentId = Date.now();
+            const newStudentData = {
+                warningData: {
+                    id: newStudentId,
+                    name: '李亮',
+                    avatar: '',
+                    riskLevel: '中',
+                    riskScore: 72,
+                    profileTags: ['适应中'],
+                    keyIndicators: {
+                        homeworkSubmission: 80,
+                        classParticipation: 60,
+                        assignmentScore: 75,
+                        attendanceRate: 90
+                    },
+                    issues: [
+                        '新加入班级，需要适应期',
+                        '学习进度正常'
+                    ]
+                },
+                toolkitData: {
+                    id: newStudentId,
+                    name: '李亮',
+                    class: '软件工程2024-1班',
+                    profileTags: ['新入学者', '适应中'],
+                    radarData: {
+                        reflection: 65,
+                        selfDrive: 70,
+                        collaboration: 68,
+                        timeManagement: 72,
+                        basicKnowledge: 75,
+                        practicalAbility: 70
+                    },
+                    riskLevel: '中',
+                    lastUpdate: new Date().toISOString().split('T')[0]
+                }
+            };
+
+            // 使用上下文方法添加新学生
+            addNewStudent(newStudentData);
+
+            setIsImporting(false);
+            setShowImportModal(false);
+            setImportProgress(0);
+            setSelectedFile(null);
+
+            Alert.alert('导入成功', `Excel文件 "${selectedFile?.name}" 已成功导入到软件工程2024-1班！新学生"李亮"已添加到系统中。`);
+        }, 3000);
     };
 
     const handleViewFullProfile = () => {
@@ -337,9 +325,18 @@ export default function WarningCenter() {
             <View style={styles.layout}>
                 {/* 左侧班级列表 */}
                 <View style={styles.classListContainer}>
-                    <Text style={styles.sectionTitle}>班级列表</Text>
+                    <View style={styles.classHeader}>
+                        <Text style={styles.sectionTitle}>班级列表</Text>
+                        <TouchableOpacity
+                            style={styles.importButton}
+                            onPress={handleImportData}
+                        >
+                            <Ionicons name="cloud-upload-outline" size={20} color="#667eea" />
+                            <Text style={styles.importButtonText}>导入数据</Text>
+                        </TouchableOpacity>
+                    </View>
                     <FlatList
-                        data={mockClasses}
+                        data={classes}
                         keyExtractor={(item) => item.id.toString()}
                         renderItem={renderClassItem}
                         showsVerticalScrollIndicator={false}
@@ -428,6 +425,86 @@ export default function WarningCenter() {
                     </View>
                 </TouchableWithoutFeedback>
             </View>
+
+            {/* 数据导入模态框 */}
+            <Modal
+                visible={showImportModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowImportModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.importModal}>
+                        <Text style={styles.importModalTitle}>数据导入</Text>
+                        <Text style={styles.importModalSubtitle}>
+                            准备导入Excel文件中的学生数据到软件工程2024-1班
+                        </Text>
+                        {selectedFile && (
+                            <View style={styles.fileInfo}>
+                                <Ionicons name="document-outline" size={20} color="#667eea" />
+                                <Text style={styles.fileName}>{selectedFile.name}</Text>
+                                <Text style={styles.fileSize}>
+                                    {(selectedFile.size / 1024).toFixed(0)}KB
+                                </Text>
+                            </View>
+                        )}
+
+                        <View style={styles.importButtons}>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => {
+                                    setShowImportModal(false);
+                                    setSelectedFile(null);
+                                }}
+                            >
+                                <Text style={styles.cancelButtonText}>取消</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.confirmButton}
+                                onPress={simulateDataImport}
+                            >
+                                <Text style={styles.confirmButtonText}>开始导入</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* 导入进度模态框 */}
+            <Modal
+                visible={isImporting}
+                transparent={true}
+                animationType="fade"
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.progressModal}>
+                        <Animated.View
+                            style={[
+                                styles.loadingIcon,
+                                { transform: [{ rotate: rotation }] }
+                            ]}
+                        >
+                            <Ionicons name="sync" size={40} color="#667eea" />
+                        </Animated.View>
+
+                        <Text style={styles.progressTitle}>正在分析Excel文件...</Text>
+                        <Text style={styles.progressSubtitle}>
+                            系统正在解析Excel表格中的学生数据，请稍候
+                        </Text>
+
+                        <View style={styles.progressBar}>
+                            <View
+                                style={[
+                                    styles.progressFill,
+                                    { width: `${importProgress}%` }
+                                ]}
+                            />
+                        </View>
+
+                        <Text style={styles.progressText}>{importProgress}%</Text>
+                    </View>
+                </View>
+            </Modal>
 
             {/* 学生详情模态框 */}
             <Modal
@@ -939,10 +1016,148 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 2,
     },
-    actionButtonText: {
+
+    // 导入相关样式
+    classHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    importButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#667eea',
+    },
+    importButtonText: {
+        color: '#667eea',
+        fontSize: 14,
+        fontWeight: '600',
+        marginLeft: 6,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    importModal: {
+        backgroundColor: 'white',
+        borderRadius: 20,
+        padding: 30,
+        width: width * 0.8,
+        maxWidth: 400,
+        alignItems: 'center',
+    },
+    importModalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#1f2937',
+        marginBottom: 10,
+    },
+    importModalSubtitle: {
         fontSize: 16,
-        fontWeight: '500',
-        marginLeft: 12,
-        color: '#333',
+        color: '#6b7280',
+        textAlign: 'center',
+        marginBottom: 30,
+        lineHeight: 24,
+    },
+    fileInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    fileName: {
+        fontSize: 14,
+        color: '#374151',
+        marginLeft: 8,
+        flex: 1,
+    },
+    fileSize: {
+        fontSize: 12,
+        color: '#9ca3af',
+        marginLeft: 8,
+    },
+    importButtons: {
+        flexDirection: 'row',
+        gap: 15,
+    },
+    cancelButton: {
+        backgroundColor: '#f3f4f6',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 12,
+        minWidth: 80,
+    },
+    cancelButtonText: {
+        color: '#6b7280',
+        fontSize: 16,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    confirmButton: {
+        backgroundColor: '#667eea',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 12,
+        minWidth: 80,
+    },
+    confirmButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    progressModal: {
+        backgroundColor: 'white',
+        borderRadius: 20,
+        padding: 40,
+        width: width * 0.8,
+        maxWidth: 400,
+        alignItems: 'center',
+    },
+    loadingIcon: {
+        marginBottom: 20,
+    },
+    progressTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1f2937',
+        marginBottom: 10,
+    },
+    progressSubtitle: {
+        fontSize: 14,
+        color: '#6b7280',
+        textAlign: 'center',
+        marginBottom: 30,
+        lineHeight: 20,
+    },
+    progressBar: {
+        width: '100%',
+        height: 8,
+        backgroundColor: '#e5e7eb',
+        borderRadius: 4,
+        marginBottom: 15,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: '#667eea',
+        borderRadius: 4,
+    },
+    progressText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#667eea',
     },
 });

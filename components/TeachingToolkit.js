@@ -13,6 +13,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useStudentData } from '../contexts/StudentDataContext';
 import RadarChart from './RadarChart';
 
 const { width, height } = Dimensions.get('window');
@@ -22,92 +23,9 @@ const IS_TABLET = width > 768;
 // 安卓状态栏高度
 const STATUS_BAR_HEIGHT = isAndroid ? 24 : 0;
 
-// 学生数据
-const mockStudents = [
-    {
-        id: 1,
-        name: '张小明',
-        class: '软件工程2024-1班',
-        profileTags: ['深度思考者', '自主学习者'],
-        radarData: {
-            reflection: 85,
-            selfDrive: 78,
-            collaboration: 65,
-            timeManagement: 70,
-            basicKnowledge: 88,
-            practicalAbility: 82
-        },
-        riskLevel: '低',
-        lastUpdate: '2024-01-15'
-    },
-    {
-        id: 2,
-        name: '李小红',
-        class: '软件工程2024-1班',
-        profileTags: ['社交活跃者', '实践导向'],
-        radarData: {
-            reflection: 72,
-            selfDrive: 85,
-            collaboration: 88,
-            timeManagement: 68,
-            basicKnowledge: 75,
-            practicalAbility: 90
-        },
-        riskLevel: '低',
-        lastUpdate: '2024-01-14'
-    },
-
-    {
-        id: 3,
-        name: '王小强',
-        class: '计算机科学2024-2班',
-        profileTags: ['勤奋努力型', '知识扎实'],
-        radarData: {
-            reflection: 68,
-            selfDrive: 92,
-            collaboration: 75,
-            timeManagement: 88,
-            basicKnowledge: 95,
-            practicalAbility: 78
-        },
-        riskLevel: '低',
-        lastUpdate: '2024-01-16'
-    },
-    {
-        id: 4,
-        name: '赵小芳',
-        class: '计算机科学2024-2班',
-        profileTags: ['创意思考者', '自我反思'],
-        radarData: {
-            reflection: 90,
-            selfDrive: 75,
-            collaboration: 82,
-            timeManagement: 72,
-            basicKnowledge: 80,
-            practicalAbility: 85
-        },
-        riskLevel: '低',
-        lastUpdate: '2024-01-13'
-    },
-    {
-        id: 5,
-        name: '陈小华',
-        class: '数据科学2024-1班',
-        profileTags: ['需要关注者'],
-        radarData: {
-            reflection: 55,
-            selfDrive: 45,
-            collaboration: 42,
-            timeManagement: 38,
-            basicKnowledge: 62,
-            practicalAbility: 48
-        },
-        riskLevel: '高',
-        lastUpdate: '2024-01-12'
-    }
-];
-
 export default function TeachingToolkit() {
+    const { toolkitStudents } = useStudentData();
+
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [showStudentProfile, setShowStudentProfile] = useState(false);
 
@@ -370,7 +288,7 @@ export default function TeachingToolkit() {
                 <Text style={styles.sectionTitle}>选择学生 • 查看完整画像</Text>
 
                 <FlatList
-                    data={mockStudents}
+                    data={toolkitStudents}
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={renderStudentCard}
                     showsVerticalScrollIndicator={false}
